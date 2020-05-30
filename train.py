@@ -37,7 +37,8 @@ class network(torch.nn.Module):
 net = network()
 # Define the loss function
 def my_loss(original, predicted):
-  
+  h, w, _ = original.shape
+  loss = (1/(h*w))*(np.sqrt(np.sum(np.square(np.subtract(original,predicted)))))
   return loss
 
 # Compute loss using the loss function
@@ -74,11 +75,14 @@ PATH = './motion_artifact.pth'
 torch.save(net.state_dict(), PATH)
 
 # Load test data
-dataiter = iter(testloader)
+dataiter = iter(testData)
 images, labels = dataiter.next()
 
-# Obtain the output for the test images
-output = net(images);
-
+# Test the network for the entire test data set
+with torch.no_grad():
+    for data in testloader:
+        images, labels = data
+        outputs = net(images)
+        
 # Visualize the output images
 _, predicted = (outputs,1)
