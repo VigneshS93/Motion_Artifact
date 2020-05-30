@@ -38,7 +38,7 @@ net = network()
 # Define the loss function
 def my_loss(original, predicted):
   h, w, _ = original.shape
-  loss = (1/(h*w))*(np.sqrt(np.sum(np.square(np.subtract(original,predicted)))))
+  loss = (1/(h*w))*(np.sqrt(np.sum(np.square(abs(np.subtract(original,predicted))))))
   return loss
 
 # Compute loss using the loss function
