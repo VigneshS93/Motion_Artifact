@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class Vgg16(torch.nn.Module):
+class network(torch.nn.Module):
     def __init__(self):
         super(Vgg16, self).__init__()
         self.conv1 = nn.Conv2d(1, 3, kernel_size=3, stride=1, padding=1)
