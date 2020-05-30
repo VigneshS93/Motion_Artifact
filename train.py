@@ -37,7 +37,7 @@ class network(torch.nn.Module):
 net = network()
 # Define the loss function
 def my_loss(original, predicted):
-  h, w, _ = original.shape
+  h, w, _ = np.shape(original)
   loss = (1/(h*w))*(np.sqrt(np.sum(np.square(abs(np.subtract(original,predicted))))))
   return loss
 
