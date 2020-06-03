@@ -61,7 +61,23 @@ def my_loss(original, predicted):
 #criterion = my_loss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
-
+#Load data set
+images_train = np.zeros((320, 180, 180))
+labels_train = np.zeros((320, 180, 180))
+for i in range(320):
+        img_file_path = f"sample_data/train/noisy/{i+1}.png"
+        lbl_file_path = f"sample_data/train/groundtruth/{i+1}.png"
+        
+        images_train[i] = imread(img_file_path)
+        labels_train[i] = imread(lbl_file_path)
+images_test = np.zeros((80, 180, 180))
+labels_test = np.zeros((80, 180, 180))
+for i in range(80):
+        img_file_path = f"sample_data/test/noisy/{i+321}.png"
+        lbl_file_path = f"sample_data/test/groundtruth/{i+321}.png"
+        
+        images_test[i] = imread(img_file_path)
+        labels_test[i] = imread(lbl_file_path)
 train_groundtruth_path = 'sample_data/train/groundtruth'
 train_noisy_path = 'sample_data/train/noisy'
 
