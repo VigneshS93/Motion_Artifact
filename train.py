@@ -4,16 +4,17 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
+import os
 
-# define function to display the images
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
     npimg = img.numpy()
     plt.imshow(np.transpose(npimg, (1, 2, 0)))
     plt.show()
+
 # load the training data set
-dataiter = iter(trainData)
-images, labels = dataiter.next()
+#dataiter = iter(trainData)
+#images, labels = dataiter.next()
 
 # Define the network
 class network(torch.nn.Module):
@@ -57,31 +58,41 @@ def my_loss(original, predicted):
   return loss
 
 # Compute loss using the loss function
-criterion = my_loss(y_original, y_pred)
+#criterion = my_loss()
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+
+
+train_groundtruth_path = 'sample_data/train/groundtruth'
+train_noisy_path = 'sample_data/train/noisy'
+
+test_groundtruth_path = 'sample_data/test/groundtruth'
+test_noisy_path = 'sample_data/test/noisy'
+
+train_label = os.listdir(train_groundtruth_path)
+train_input = os.listdir(train_noisy_path)
+
+test_label = os.listdir(test_groundtruth_path)
+test_input = os.listdir(test_noisy_path)
+
 
 # Train the network using the training dataset
 for epoch in range(20):  
-    running_loss = 0.0
-    for i, data in enumerate(trainloader, 0):
-        # get the inputs; data is a list of [inputs, labels]
-        inputs, labels = data
+    
+    for im in train_label:
 
-        # zero the parameter gradients
-        optimizer.zero_grad()
+      image_path = os.path.join(train_noisy_path,im)
+      img = torch.tensor(cv2.imread(image_path))
 
-        # forward + backward + optimize
-        outputs = net(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+      label_path = os.path.join(train_groundtruth_path,im)
+      img_label = torch.tensor(cv2.imread(label_path))
+     
+      optimizer.zero_grad()
 
-        # print statistics
-        running_loss += loss.item()
-        if i % 2000 == 1999:    # print every 2000 mini-batches
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
-            running_loss = 0.0
+      # forward + backward + optimize
+      outputs = net(img)
+      loss = my_loss(outputs, img_label)
+      loss.backward()
+      optimizer.step()
 
 print('Finished Training')
 
@@ -90,14 +101,21 @@ PATH = './motion_artifact.pth'
 torch.save(net.state_dict(), PATH)
 
 # Load test data
-dataiter = iter(testData)
-images, labels = dataiter.next()
 
 # Test the network for the entire test data set
 with torch.no_grad():
-    for data in testloader:
-        images, labels = data
-        outputs = net(images)
-        
+
+  for im in test_label:
+
+      image_path = os.path.join(test_noisy_path,im)
+      img = torch.tensor(cv2.imread(image_path))
+
+      label_path = os.path.join(test_groundtruth_path,im)
+      img_label = cv2.imread(label_path)
+     
+      # forward + backward + optimize
+      outputs = net(img)
+
+       
 # Visualize the output images
 _, predicted = (outputs,1)
