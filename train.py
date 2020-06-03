@@ -24,6 +24,14 @@ class network(torch.nn.Module):
         self.conv3 = nn.Conv2d(12, 24, kernel_size=3, stride=1, padding=1)
         self.conv4 = nn.Conv2d(24, 36, kernel_size=3, stride=1, padding=1)
         self.conv5 = nn.Conv2d(36, 48, kernel_size=3, stride=1, padding=1)
+        
+        self.conv6 = nn.Conv2d(48, 36, kernel_size=3, stride=1, padding=1)
+        self.conv7 = nn.Conv2d(36, 24, kernel_size=3, stride=1, padding=1)
+        self.conv8 = nn.Conv2d(24, 12, kernel_size=3, stride=1, padding=1)
+        self.conv9 = nn.Conv2d(12, 3, kernel_size=3, stride=1, padding=1)
+        self.conv10 = nn.Conv2d(3, 1, kernel_size=3, stride=1, padding=1)
+        
+        
 # average the pixels to get the required dimension
        
     def forward(self, X):
@@ -32,6 +40,13 @@ class network(torch.nn.Module):
         h = F.relu(self.conv3(h))
         h = F.relu(self.conv4(h))
         h = F.relu(self.conv5(h))
+        
+        h = F.relu(self.conv6(X))
+        h = F.relu(self.conv7(h))
+        h = F.relu(self.conv8(h))
+        h = F.relu(self.conv9(h))
+        h = F.relu(self.conv10(h))
+        
         return h
   
 net = network()
