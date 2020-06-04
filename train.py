@@ -1,10 +1,12 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+#import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import cv2
+from matplotlib.pyplot import imread
 
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
@@ -32,8 +34,6 @@ class network(torch.nn.Module):
         self.conv9 = nn.Conv2d(12, 3, kernel_size=3, stride=1, padding=1)
         self.conv10 = nn.Conv2d(3, 1, kernel_size=3, stride=1, padding=1)
         
-        
-# average the pixels to get the required dimension
        
     def forward(self, X):
         h = F.relu(self.conv1(X))
@@ -62,6 +62,12 @@ def my_loss(original, predicted):
 optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 
 #Load data set
+def read_dataset(path):
+    images_path = f"{path}/images"
+    labels_path = f"{path}/labels"
+
+    images = np.zeros((320, 180, 180))
+    labels = np.zeros((320, 180, 180))
 images_train = np.zeros((320, 180, 180))
 labels_train = np.zeros((320, 180, 180))
 for i in range(320):
@@ -72,9 +78,9 @@ for i in range(320):
         labels_train[i] = imread(lbl_file_path)
 images_test = np.zeros((80, 180, 180))
 labels_test = np.zeros((80, 180, 180))
-for i in range(80):
-        img_file_path = f"sample_data/test/noisy/{i+321}.png"
-        lbl_file_path = f"sample_data/test/groundtruth/{i+321}.png"
+for i in range(321,400):
+        img_file_path = f"sample_data/test/noisy/{i}.png"
+        lbl_file_path = f"sample_data/test/groundtruth/{i}.png"
         
         images_test[i] = imread(img_file_path)
         labels_test[i] = imread(lbl_file_path)
