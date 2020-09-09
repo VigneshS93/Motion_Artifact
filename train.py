@@ -1,13 +1,39 @@
+import os
+import argparse
 import torch
 import torch.nn as nn
-#import torch.nn.functional as F
+import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import cv2
+import pandas as pd
 from matplotlib.pyplot import imread
+from models import art_rem
+from torch.utils.data import DataLoader
+from dataset import dataset_loader
+import torch.optim as optim
+import torch.optim.lr_scheduler as lr_scd 
+# from dataloader import load_data as data_loader
 
+
+#Pass the arguments
+parser = argparse.ArgumentParser(description="art_rem")
+parser.add_argument("--preprocess", type=bool, default=False, help='run prepare_data or not')
+parser.add_argument("--batchSize", type=int, default=128, help="Training batch size")
+parser.add_argument("--num_of_layers", type=int, default=17, help="Number of total layers")
+parser.add_argument("--num_epochs", type=int, default=200, help="Number of training epochs")
+parser.add_argument("--decay_step", type=int, default=25, help="The step at which the learning rate should drop")
+parser.add_argument("--lr_decay", type=float, default=0.7, help='Rate at which the learning rate should drop')
+parser.add_argument("--lr", type=float, default=1e-3, help="Initial learning rate")
+parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
+parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
+parser.add_argument("--outf", type=str, default="logs", help='path of log files')
+parser.add_argument("--write_freq", type=int, default=10, help="Step for saving Checkpoint")
+
+opt = parser.parse_args()
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 def imshow(img):
     img = img / 2 + 0.5     # unnormalize
     npimg = img.numpy()
@@ -15,129 +41,71 @@ def imshow(img):
     plt.show()
 
 # load the training data set
-#dataiter = iter(trainData)
-#images, labels = dataiter.next()
+input_set, groundTruth_set = dataset_loader(opt.data_dir)
+train_set=[]
+for i in range(len(input_set)):
+  train_set.append([input_set[i], groundTruth_set[i]])
+trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
+#Convert the panda dataframe to Torch tensor
 
-# Define the network
-class network(torch.nn.Module):
-    def __init__(self):
-        super(network, self).__init__()
-        self.conv1 = nn.Conv2d(1, 3, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(3, 12, kernel_size=3, stride=1, padding=1)
-        self.conv3 = nn.Conv2d(12, 24, kernel_size=3, stride=1, padding=1)
-        self.conv4 = nn.Conv2d(24, 36, kernel_size=3, stride=1, padding=1)
-        self.conv5 = nn.Conv2d(36, 48, kernel_size=3, stride=1, padding=1)
-        
-        self.conv6 = nn.Conv2d(48, 36, kernel_size=3, stride=1, padding=1)
-        self.conv7 = nn.Conv2d(36, 24, kernel_size=3, stride=1, padding=1)
-        self.conv8 = nn.Conv2d(24, 12, kernel_size=3, stride=1, padding=1)
-        self.conv9 = nn.Conv2d(12, 3, kernel_size=3, stride=1, padding=1)
-        self.conv10 = nn.Conv2d(3, 1, kernel_size=3, stride=1, padding=1)
-        
-       
-    def forward(self, X):
-        h = F.relu(self.conv1(X))
-        h = F.relu(self.conv2(h))
-        h = F.relu(self.conv3(h))
-        h = F.relu(self.conv4(h))
-        h = F.relu(self.conv5(h))
-        
-        h = F.relu(self.conv6(X))
-        h = F.relu(self.conv7(h))
-        h = F.relu(self.conv8(h))
-        h = F.relu(self.conv9(h))
-        h = F.relu(self.conv10(h))
-        
-        return h
-  
+# Define the network 
 net = network()
 # Define the loss function
 def my_loss(original, predicted):
   h, w, _ = np.shape(original)
   loss = (1/(h*w))*(np.sqrt(np.sum(np.square(abs(np.subtract(original,predicted))))))
   return loss
+iters = -1
+# Define the optimizer
+lr_clip = 1e-5
+optimizer = optim.Adam(model.parameters(), lr=opt.lr)
+lr_lbmd = lambda it: max(opt.lr_decay ** (int(it * opt.batch_size / opt.decay_step)),lr_clip / opt.lr,)
+lr_scheduler = lr_scd.LambdaLR(optimizer,lr_lambda=lr_lmbd, last_epoch=iters)
 
-# Compute loss using the loss function
-#criterion = my_loss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+#Define the log directory for checkpoints
+if os.path.exists(opt.log_dir) is not True:
+  os.makedirs(opt.log_dir)
 
-#Load data set
-def read_dataset(path):
-    images_path = f"{path}/images"
-    labels_path = f"{path}/labels"
+checkpoints_dir = os.path.join(opt.log_dir, "checkpoints")
 
-    images = np.zeros((320, 180, 180))
-    labels = np.zeros((320, 180, 180))
-images_train = np.zeros((320, 180, 180))
-labels_train = np.zeros((320, 180, 180))
-for i in range(320):
-        img_file_path = f"sample_data/train/noisy/{i+1}.png"
-        lbl_file_path = f"sample_data/train/groundtruth/{i+1}.png"
-        
-        images_train[i] = imread(img_file_path)
-        labels_train[i] = imread(lbl_file_path)
-images_test = np.zeros((80, 180, 180))
-labels_test = np.zeros((80, 180, 180))
-for i in range(321,400):
-        img_file_path = f"sample_data/test/noisy/{i}.png"
-        lbl_file_path = f"sample_data/test/groundtruth/{i}.png"
-        
-        images_test[i] = imread(img_file_path)
-        labels_test[i] = imread(lbl_file_path)
-train_groundtruth_path = 'sample_data/train/groundtruth'
-train_noisy_path = 'sample_data/train/noisy'
+if os.path.exists(checkpoints_dir) is not True:
+  os.mkdir(checkpoints_dir)
 
-test_groundtruth_path = 'sample_data/test/groundtruth'
-test_noisy_path = 'sample_data/test/noisy'
+#Load status from checkpoint 
+log_open_mode = 'w'
+start_epoch = 0
+if opt.checkpoint is not None:
+    fname = os.path.join(checkpoints_dir, opt.checkpoint)
+    start_epoch, iters = checkpoint_util.load_checkpoint(model_3d=model, optimizer=optimizer, filename=fname)
+    start_epoch += 1
+    log_open_mode = 'a'
 
-train_label = os.listdir(train_groundtruth_path)
-train_input = os.listdir(train_noisy_path)
-
-test_label = os.listdir(test_groundtruth_path)
-test_input = os.listdir(test_noisy_path)
-
-
+log = LogUtils(os.path.join(opt.log_dir, 'logfile'), log_open_mode)
+log.write('Supervised learning for motion artifact reduction\n')
+log.write_args(opt)
+iters = max(iters,0)
 # Train the network using the training dataset
-for epoch in range(20):  
-    
-    for im in train_label:
-
-      image_path = os.path.join(train_noisy_path,im)
-      img = torch.tensor(cv2.imread(image_path))
-
-      label_path = os.path.join(train_groundtruth_path,im)
-      img_label = torch.tensor(cv2.imread(label_path))
-     
-      optimizer.zero_grad()
-
-      # forward + backward + optimize
-      outputs = net(img)
-      loss = my_loss(outputs, img_label)
-      loss.backward()
-      optimizer.step()
+for epoch_num in range(start_epoch, opt.num_epochs):
+  for data in iter(trainLoader):
+    if lr_scheduler is not None:
+      lr_scheduler.step(iters)
+    optimizer.zero_grad()
+    for param_group in optimizer.param_groups:
+          param_group["lr"] = current_lr
+      print('learning rate %f' % current_lr)
+    inp_PM, gt = next(trainLoader)
+    # forward + backward + optimize
+    outputs = net(img)
+    loss = my_loss(outputs, img_label)
+    loss.backward()
+    optimizer.step()
+    iters += 1
+  if opt.write_freq != -1 and (epoch_num + 1) % opt.write_freq is 0:
+    fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_i))
+    checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
 
 print('Finished Training')
 
 # save the trained model
 PATH = './motion_artifact.pth'
 torch.save(net.state_dict(), PATH)
-
-# Load test data
-
-# Test the network for the entire test data set
-with torch.no_grad():
-
-  for im in test_label:
-
-      image_path = os.path.join(test_noisy_path,im)
-      img = torch.tensor(cv2.imread(image_path))
-
-      label_path = os.path.join(test_groundtruth_path,im)
-      img_label = cv2.imread(label_path)
-     
-      # forward + backward + optimize
-      outputs = net(img)
-
-       
-# Visualize the output images
-_, predicted = (outputs,1)
