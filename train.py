@@ -12,9 +12,13 @@ import pandas as pd
 from matplotlib.pyplot import imread
 from models import art_rem
 from torch.utils.data import DataLoader
-from dataset import dataset_loader
+from datas import dataset_loader
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scd 
+import sys
+sys.path.append("..")
+from utils.logutils import LogUtils
+import utils.check_points_utils as checkpoint_util
 # from dataloader import load_data as data_loader
 
 
@@ -22,15 +26,14 @@ import torch.optim.lr_scheduler as lr_scd
 parser = argparse.ArgumentParser(description="art_rem")
 parser.add_argument("--preprocess", type=bool, default=False, help='run prepare_data or not')
 parser.add_argument("--batchSize", type=int, default=128, help="Training batch size")
-parser.add_argument("--num_of_layers", type=int, default=17, help="Number of total layers")
 parser.add_argument("--num_epochs", type=int, default=200, help="Number of training epochs")
-parser.add_argument("--decay_step", type=int, default=25, help="The step at which the learning rate should drop")
-parser.add_argument("--lr_decay", type=float, default=0.7, help='Rate at which the learning rate should drop')
-parser.add_argument("--lr", type=float, default=1e-3, help="Initial learning rate")
+parser.add_argument("--decay_step", type=int, default=1, help="The step at which the learning rate should drop")
+parser.add_argument("--lr_decay", type=float, default=0.5, help='Rate at which the learning rate should drop')
+parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rate")
 parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
 parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
-parser.add_argument("--outf", type=str, default="logs", help='path of log files')
-parser.add_argument("--write_freq", type=int, default=10, help="Step for saving Checkpoint")
+parser.add_argument("--write_freq", type=int, default=2, help="Step for saving Checkpoint")
+parser.add_argument("-checkpoint", type=str, default=None, help="Checkpoint to start from")
 
 opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -42,26 +45,21 @@ def imshow(img):
 
 # load the training data set
 input_set, groundTruth_set = dataset_loader(opt.data_dir)
+input_set = np.array(input_set, dtype=np.float32)
+groundTruth_set = np.array(groundTruth_set, dtype=np.float32)
 train_set=[]
 for i in range(len(input_set)):
   train_set.append([input_set[i], groundTruth_set[i]])
 trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
 #Convert the panda dataframe to Torch tensor
 
-# Define the network 
-net = network()
 # Define the loss function
-def my_loss(original, predicted):
-  h, w, _ = np.shape(original)
-  loss = (1/(h*w))*(np.sqrt(np.sum(np.square(abs(np.subtract(original,predicted))))))
-  return loss
+mse_loss = nn.MSELoss()
+# def my_loss(original, predicted):
+#   h, w, _ = np.shape(original)
+#   loss = (1/(h*w))*(np.sqrt(np.sum(np.square(abs(np.subtract(original,predicted))))))
+#   return loss
 iters = -1
-# Define the optimizer
-lr_clip = 1e-5
-optimizer = optim.Adam(model.parameters(), lr=opt.lr)
-lr_lbmd = lambda it: max(opt.lr_decay ** (int(it * opt.batch_size / opt.decay_step)),lr_clip / opt.lr,)
-lr_scheduler = lr_scd.LambdaLR(optimizer,lr_lambda=lr_lmbd, last_epoch=iters)
-
 #Define the log directory for checkpoints
 if os.path.exists(opt.log_dir) is not True:
   os.makedirs(opt.log_dir)
@@ -70,6 +68,19 @@ checkpoints_dir = os.path.join(opt.log_dir, "checkpoints")
 
 if os.path.exists(checkpoints_dir) is not True:
   os.mkdir(checkpoints_dir)
+
+# Load the model
+input_channel=1
+model = art_rem(input_channel).cuda()
+# model = torch.nn.DataParallel(model) # For using multiple GPUs
+
+# Define the optimizer
+lr_clip = 1e-5
+optimizer = optim.Adam(model.parameters(), lr=opt.lr)
+lr_lbmd = lambda it: max(
+    opt.lr_decay ** (int(it * opt.batchSize / opt.decay_step)),
+    lr_clip / opt.lr,
+)
 
 #Load status from checkpoint 
 log_open_mode = 'w'
@@ -83,29 +94,41 @@ if opt.checkpoint is not None:
 log = LogUtils(os.path.join(opt.log_dir, 'logfile'), log_open_mode)
 log.write('Supervised learning for motion artifact reduction\n')
 log.write_args(opt)
+# lr_scheduler = lr_scd.LambdaLR(optimizer,lr_lambda=lr_lbmd, last_epoch=iters)
+lr_scheduler = lr_scd.StepLR(optimizer, step_size=opt.decay_step, gamma=opt.lr_decay)
 iters = max(iters,0)
+trainData = iter(trainLoader)
 # Train the network using the training dataset
 for epoch_num in range(start_epoch, opt.num_epochs):
+  trainData = iter(trainLoader)
   for data in iter(trainLoader):
     if lr_scheduler is not None:
       lr_scheduler.step(iters)
     optimizer.zero_grad()
-    for param_group in optimizer.param_groups:
-          param_group["lr"] = current_lr
-      print('learning rate %f' % current_lr)
-    inp_PM, gt = next(trainLoader)
+    for param_group in optimizer.param_groups:   
+      print('The current learning rate is:%f' % param_group["lr"])
+    inp_PM, gt_PM = next(trainData)
+    inp_PM = torch.unsqueeze(inp_PM,1).cuda()
+    gt_PM = torch.unsqueeze(gt_PM,1).cuda()
     # forward + backward + optimize
-    outputs = net(img)
-    loss = my_loss(outputs, img_label)
+    output_PM = model(inp_PM)
+    loss = mse_loss(output_PM, gt_PM)
     loss.backward()
     optimizer.step()
     iters += 1
+  lr_scheduler.get_last_lr()
   if opt.write_freq != -1 and (epoch_num + 1) % opt.write_freq is 0:
-    fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_i))
+    fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_num))
     checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
+
+    # Write CSV files
+    inp = inp_PM[0][0].detach().cpu().numpy()
+    filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_inputPM.csv")
+    pd.DataFrame(inp).to_csv(filename,header=False,index=False)
+    out = output_PM[0][0].detach().cpu().numpy()
+    filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
+    pd.DataFrame(out).to_csv(filename,header=False,index=False)
 
 print('Finished Training')
 
-# save the trained model
-PATH = './motion_artifact.pth'
-torch.save(net.state_dict(), PATH)
+
