@@ -27,7 +27,7 @@ parser = argparse.ArgumentParser(description="art_rem")
 parser.add_argument("--preprocess", type=bool, default=False, help='run prepare_data or not')
 parser.add_argument("--batchSize", type=int, default=128, help="Training batch size")
 parser.add_argument("--num_epochs", type=int, default=200, help="Number of training epochs")
-parser.add_argument("--decay_step", type=int, default=1, help="The step at which the learning rate should drop")
+parser.add_argument("--decay_step", type=int, default=10, help="The step at which the learning rate should drop")
 parser.add_argument("--lr_decay", type=float, default=0.5, help='Rate at which the learning rate should drop')
 parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rate")
 parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
@@ -75,12 +75,7 @@ model = art_rem(input_channel).cuda()
 # model = torch.nn.DataParallel(model) # For using multiple GPUs
 
 # Define the optimizer
-lr_clip = 1e-5
 optimizer = optim.Adam(model.parameters(), lr=opt.lr)
-lr_lbmd = lambda it: max(
-    opt.lr_decay ** (int(it * opt.batchSize / opt.decay_step)),
-    lr_clip / opt.lr,
-)
 
 #Load status from checkpoint 
 log_open_mode = 'w'
@@ -105,18 +100,18 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     if lr_scheduler is not None:
       lr_scheduler.step(iters)
     optimizer.zero_grad()
-    for param_group in optimizer.param_groups:   
-      print('The current learning rate is:%f' % param_group["lr"])
     inp_PM, gt_PM = next(trainData)
     inp_PM = torch.unsqueeze(inp_PM,1).cuda()
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
-    # forward + backward + optimize
+   
     output_PM = model(inp_PM)
     loss = mse_loss(output_PM, gt_PM)
     loss.backward()
     optimizer.step()
     iters += 1
   lr_scheduler.get_last_lr()
+  for param_group in optimizer.param_groups:
+    print('Training at Epoch %d with a learning rate of %f. The loss is %f.' %(epoch_num, param_group["lr"], loss))
   if opt.write_freq != -1 and (epoch_num + 1) % opt.write_freq is 0:
     fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_num))
     checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
