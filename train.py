@@ -96,6 +96,8 @@ trainData = iter(trainLoader)
 # Train the network using the training dataset
 for epoch_num in range(start_epoch, opt.num_epochs):
   trainData = iter(trainLoader)
+  ave_loss = 0
+  count = 0
   for data in iter(trainLoader):
     if lr_scheduler is not None:
       lr_scheduler.step(iters)
@@ -103,15 +105,17 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     inp_PM, gt_PM = next(trainData)
     inp_PM = torch.unsqueeze(inp_PM,1).cuda()
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
-   
     output_PM = model(inp_PM)
     loss = mse_loss(output_PM, gt_PM)
     loss.backward()
     optimizer.step()
     iters += 1
+    ave_loss += loss.item()
+    count += 1
   lr_scheduler.get_last_lr()
+  ave_loss /= count
   for param_group in optimizer.param_groups:
-    print('Training at Epoch %d with a learning rate of %f. The loss is %f.' %(epoch_num, param_group["lr"], loss))
+    print('Training at Epoch %d with a learning rate of %f. The average loss is %f.' %(epoch_num, param_group["lr"], ave_loss))
   if opt.write_freq != -1 and (epoch_num + 1) % opt.write_freq is 0:
     fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_num))
     checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
