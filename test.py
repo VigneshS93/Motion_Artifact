@@ -98,6 +98,10 @@ out = output_PM[0][0].detach().cpu().numpy()
 filename = opt.log_dir + str("/epoch_") + str(count) + str("_outputPM.csv")
 pd.DataFrame(out).to_csv(filename,header=False,index=False)
 
-print('Finished Testing')
+# Log the results
+log.write('\nAverage_test_loss:{0}'.format(("%.8f" % ave_loss)))
+
+
+print('Finished Testing') 
 
 

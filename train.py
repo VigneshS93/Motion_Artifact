@@ -24,7 +24,6 @@ import utils.check_points_utils as checkpoint_util
 
 #Pass the arguments
 parser = argparse.ArgumentParser(description="art_rem")
-parser.add_argument("--preprocess", type=bool, default=False, help='run prepare_data or not')
 parser.add_argument("--batchSize", type=int, default=128, help="Training batch size")
 parser.add_argument("--num_epochs", type=int, default=200, help="Number of training epochs")
 parser.add_argument("--decay_step", type=int, default=10, help="The step at which the learning rate should drop")
@@ -84,7 +83,7 @@ if opt.checkpoint is not None:
     log_open_mode = 'a'
 
 log = LogUtils(os.path.join(opt.log_dir, 'logfile'), log_open_mode)
-log.write('Supervised learning for motion artifact reduction\n')
+log.write('Supervised learning for motion artifact reduction - Training\n')
 log.write_args(opt)
 lr_scheduler = lr_scd.StepLR(optimizer, step_size=opt.decay_step, gamma=opt.lr_decay)
 iters = max(iters,0)
@@ -124,6 +123,10 @@ for epoch_num in range(start_epoch, opt.num_epochs):
   filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
   pd.DataFrame(out).to_csv(filename,header=False,index=False)
 
+  # Log the results
+  log.write('\nepoch no.: {0}'.format(epoch_unm))
+  log.write('\nAverage_train_loss:{0}'.format(("%.8f" % ave_loss)))
+  
 print('Finished Training')
 
 
