@@ -46,11 +46,9 @@ test_set=[]
 for i in range(len(input_set)):
   test_set.append([input_set[i], groundTruth_set[i]])
 testLoader = DataLoader(dataset=test_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
-#Convert the panda dataframe to Torch tensor
 
 # Define the loss function
 mse_loss = nn.MSELoss()
-
 
 #Define the log directory for checkpoints
 if os.path.exists(opt.log_dir) is not True:
@@ -69,11 +67,6 @@ model = art_rem(input_channel).cuda()
 #Load status from checkpoint 
 log_open_mode = 'w'
 checkpoint_util.load_checkpoint(model_3d=model, filename=opt.checkpoint)
-# if opt.checkpoint is not None:
-#     fname = os.path.join(checkpoints_dir, opt.checkpoint)
-#     start_epoch, iters = checkpoint_util.load_checkpoint(model_3d=model, optimizer=optimizer, filename=fname)
-#     start_epoch += 1
-#     log_open_mode = 'a'
 
 log = LogUtils(os.path.join(opt.log_dir, 'logfile'), log_open_mode)
 log.write('Supervised learning for motion artifact reduction - Testing\n')
@@ -83,8 +76,7 @@ if opt.checkpoint is None:
     print('Checkpoint is missing! Load the checkpoint to start the testing')
     sys.exit()
     
-
-# Train the network using the training dataset
+# Test the network using the trained model
 testData = iter(testLoader)
 ave_loss = 0
 count = 0

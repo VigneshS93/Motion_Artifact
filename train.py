@@ -88,8 +88,8 @@ log.write('Supervised learning for motion artifact reduction\n')
 log.write_args(opt)
 lr_scheduler = lr_scd.StepLR(optimizer, step_size=opt.decay_step, gamma=opt.lr_decay)
 iters = max(iters,0)
-# trainData = iter(trainLoader)
-# Train the network using the training dataset
+
+# Train the network on the training dataset
 for epoch_num in range(start_epoch, opt.num_epochs):
   trainData = iter(trainLoader)
   ave_loss = 0
