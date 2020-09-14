@@ -14,6 +14,7 @@ class art_rem(torch.nn.Module):
         self.conv1 = nn.Conv2d(inp_ch, out_ch_1, kernel_size=ks, stride=1, padding=pad)
         self.conv2 = nn.Conv2d(out_ch_1, out_ch_2, kernel_size=ks, stride=1, padding=pad)
         self.conv3 = nn.Conv2d(out_ch_2, out_ch_3, kernel_size=ks, stride=1, padding=pad)
+        self.bnorm = nn.BatchNorm2d(out_ch_3)
         self.mpool1 = nn.MaxPool2d(2, stride=2,return_indices=True)
         self.conv4 = nn.Conv2d(out_ch_3, out_ch_3, kernel_size=ks, stride=1, padding=pad)
         self.conv5 = nn.Conv2d(out_ch_3, out_ch_3, kernel_size=ks, stride=1, padding=pad)
@@ -27,7 +28,7 @@ class art_rem(torch.nn.Module):
     def forward(self, X):
         h = F.relu(self.conv1(X))
         h = F.relu(self.conv2(h))
-        h = F.relu(self.conv3(h))
+        h = F.relu(self.bnorm(self.conv3(h)))
         h, indices = self.mpool1(h)
         h = F.relu(h)
         h = F.relu(self.conv4(h))

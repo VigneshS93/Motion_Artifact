@@ -24,6 +24,22 @@
                 "--batchSize","4",
                 "--data_dir","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/data",
                 "--log_dir","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/results/trial"
+                
+            ]
+
+        }
+        {
+            "type": "python",
+            "request": "launch",
+            "name": "test",
+            "console": "integratedTerminal",
+            "program": "/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/test.py",
+            "args": [
+                "--batchSize","4",
+                "--data_dir","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/data",
+                "--log_dir","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/results/trial",
+                "--checkpoint","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/results/trial/checkpoints/checkpoint_7"
+                
             ]
 
         }

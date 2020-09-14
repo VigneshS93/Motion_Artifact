@@ -33,7 +33,7 @@ parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rat
 parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
 parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
 parser.add_argument("--write_freq", type=int, default=2, help="Step for saving Checkpoint")
-parser.add_argument("-checkpoint", type=str, default=None, help="Checkpoint to start from")
+parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint to start from")
 
 opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -55,10 +55,7 @@ trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchS
 
 # Define the loss function
 mse_loss = nn.MSELoss()
-# def my_loss(original, predicted):
-#   h, w, _ = np.shape(original)
-#   loss = (1/(h*w))*(np.sqrt(np.sum(np.square(abs(np.subtract(original,predicted))))))
-#   return loss
+
 iters = -1
 #Define the log directory for checkpoints
 if os.path.exists(opt.log_dir) is not True:
@@ -72,7 +69,7 @@ if os.path.exists(checkpoints_dir) is not True:
 # Load the model
 input_channel=1
 model = art_rem(input_channel).cuda()
-# model = torch.nn.DataParallel(model) # For using multiple GPUs
+# model = nn.DataParallel(model) # For using multiple GPUs
 
 # Define the optimizer
 optimizer = optim.Adam(model.parameters(), lr=opt.lr)
@@ -89,10 +86,9 @@ if opt.checkpoint is not None:
 log = LogUtils(os.path.join(opt.log_dir, 'logfile'), log_open_mode)
 log.write('Supervised learning for motion artifact reduction\n')
 log.write_args(opt)
-# lr_scheduler = lr_scd.LambdaLR(optimizer,lr_lambda=lr_lbmd, last_epoch=iters)
 lr_scheduler = lr_scd.StepLR(optimizer, step_size=opt.decay_step, gamma=opt.lr_decay)
 iters = max(iters,0)
-trainData = iter(trainLoader)
+# trainData = iter(trainLoader)
 # Train the network using the training dataset
 for epoch_num in range(start_epoch, opt.num_epochs):
   trainData = iter(trainLoader)
@@ -120,13 +116,13 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_num))
     checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
 
-    # Write CSV files
-    inp = inp_PM[0][0].detach().cpu().numpy()
-    filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_inputPM.csv")
-    pd.DataFrame(inp).to_csv(filename,header=False,index=False)
-    out = output_PM[0][0].detach().cpu().numpy()
-    filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
-    pd.DataFrame(out).to_csv(filename,header=False,index=False)
+  # Write CSV files
+  inp = inp_PM[0][0].detach().cpu().numpy()
+  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_inputPM.csv")
+  pd.DataFrame(inp).to_csv(filename,header=False,index=False)
+  out = output_PM[0][0].detach().cpu().numpy()
+  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
+  pd.DataFrame(out).to_csv(filename,header=False,index=False)
 
 print('Finished Training')
 
