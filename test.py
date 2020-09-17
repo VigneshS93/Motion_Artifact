@@ -24,7 +24,7 @@ import utils.check_points_utils as checkpoint_util
 
 #Pass the arguments
 parser = argparse.ArgumentParser(description="art_rem")
-parser.add_argument("--batchSize", type=int, default=128, help="Training batch size")
+parser.add_argument("--batchSize", type=int, default=8, help="Training batch size")
 parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
 parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
 parser.add_argument("--write_freq", type=int, default=2, help="Step for saving Checkpoint")
