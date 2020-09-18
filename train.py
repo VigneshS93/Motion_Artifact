@@ -28,7 +28,7 @@ from torchvision import transforms
 parser = argparse.ArgumentParser(description="art_rem")
 parser.add_argument("--batchSize", type=int, default=8, help="Training batch size")
 parser.add_argument("--num_epochs", type=int, default=200, help="Number of training epochs")
-parser.add_argument("--decay_step", type=int, default=100, help="The step at which the learning rate should drop")
+parser.add_argument("--decay_step", type=int, default=500, help="The step at which the learning rate should drop")
 parser.add_argument("--lr_decay", type=float, default=0.5, help='Rate at which the learning rate should drop')
 parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rate")
 parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
@@ -48,19 +48,16 @@ def imshow(img):
 input_set, groundTruth_set = dataset_loader(opt.data_dir)
 input_set = torch.FloatTensor(np.array(input_set))
 groundTruth_set = torch.FloatTensor(np.array(groundTruth_set))
-input_set = input_set/100
-groundTruth_set = groundTruth_set/100
 train_set=[]
 for i in range(len(input_set)):
   train_set.append([input_set[i], groundTruth_set[i]])
-# train_set = torch.FloatTensor(train_set)
 trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=False, pin_memory=True)
-#Convert the panda dataframe to Torch tensor
 
 # Define the loss function
 mse_loss = nn.MSELoss(reduction='mean')
 
 iters = -1
+
 #Define the log directory for checkpoints
 if os.path.exists(opt.log_dir) is not True:
   os.makedirs(opt.log_dir)
@@ -106,8 +103,7 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     inp_PM = torch.unsqueeze(inp_PM,1).cuda()
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
     output_PM = model(inp_PM)
-    output_PM = output_PM + inp_PM
-    loss = torch.sqrt(mse_loss(output_PM, gt_PM))
+    loss = (mse_loss(output_PM, gt_PM))
     loss.backward()
     optimizer.step()
     iters += 1
@@ -116,7 +112,7 @@ for epoch_num in range(start_epoch, opt.num_epochs):
   lr_scheduler.get_last_lr()
   ave_loss /= count
   for param_group in optimizer.param_groups:
-    print('Training at Epoch %d with a learning rate of %f. The average loss is %f.' %(epoch_num, param_group["lr"], ave_loss))
+    print('\nTraining at Epoch %d with a learning rate of %f.' %(epoch_num, param_group["lr"]))
   if opt.write_freq != -1 and (epoch_num + 1) % opt.write_freq is 0:
     fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_num))
     checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
@@ -128,10 +124,12 @@ for epoch_num in range(start_epoch, opt.num_epochs):
   out = output_PM[0][0].detach().cpu().numpy()
   filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
   pd.DataFrame(out).to_csv(filename,header=False,index=False)
+  gt = gt_PM[0][0].detach().cpu().numpy()
+  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_gtPM.csv")
+  pd.DataFrame(gt).to_csv(filename,header=False,index=False)
 
   # Log the results
-  log.write('\nepoch no.: {0}'.format(epoch_num))
-  log.write('\nAverage_train_loss:{0}'.format(("%.8f" % ave_loss)))
+  log.write('\nepoch no.: {0}, Average_train_loss:{1}'.format((epoch_num), ("%.8f" % ave_loss)))
   
 print('Finished Training')
 
