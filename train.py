@@ -21,6 +21,7 @@ from utils.logutils import LogUtils
 import utils.check_points_utils as checkpoint_util
 from torch.autograd import Variable
 from torchvision import transforms
+from datas import normalizeData
 # from dataloader import load_data as data_loader
 
 
@@ -38,24 +39,28 @@ parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint to 
 
 opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-def imshow(img):
-    img = img / 2 + 0.5     # unnormalize
-    npimg = img.numpy()
-    plt.imshow(np.transpose(npimg, (1, 2, 0)))
-    plt.show()
+
 
 # load the training data set
-input_set, groundTruth_set = dataset_loader(opt.data_dir)
+input_set, groundTruth_set, mask = dataset_loader(opt.data_dir)
 input_set = torch.FloatTensor(np.array(input_set))
 groundTruth_set = torch.FloatTensor(np.array(groundTruth_set))
+mask = torch.FloatTensor(np.array(mask))
+mask = mask/255
+norm_input = normalizeData(input_set)
+norm_gt = normalizeData(groundTruth_set)
 train_set=[]
 for i in range(len(input_set)):
-  train_set.append([input_set[i], groundTruth_set[i]])
-trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=False, pin_memory=True)
+  train_set.append([input_set[i], norm_input[i], groundTruth_set[i], norm_gt[i], mask[i]])
+trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
 
 # Define the loss function
 mse_loss = nn.MSELoss(reduction='mean')
-
+def squared_diff(mask, output, groundTruth):
+  sq_diff = torch.square(output - groundTruth)
+  mask_sq_diff = torch.mul(mask,sq_diff)
+  loss = torch.mean(mask_sq_diff)
+  return loss
 iters = -1
 
 #Define the log directory for checkpoints
@@ -69,7 +74,7 @@ if os.path.exists(checkpoints_dir) is not True:
 
 # Load the model
 input_channel=1
-model = art_rem(input_channel).cuda()
+model = art_rem1(input_channel).cuda()
 # model = nn.DataParallel(model) # For using multiple GPUs
 
 # Define the optimizer
@@ -99,11 +104,13 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     if lr_scheduler is not None:
       lr_scheduler.step(iters)
     optimizer.zero_grad()
-    inp_PM, gt_PM = next(trainData)
+    ori_inp, inp_PM, ori_gt, gt_PM, mask_PM = next(trainData)
     inp_PM = torch.unsqueeze(inp_PM,1).cuda()
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
+    mask_PM = torch.unsqueeze(mask_PM,1).cuda()
     output_PM = model(inp_PM)
-    loss = (mse_loss(output_PM, gt_PM))
+    loss = squared_diff(mask_PM, output_PM, gt_PM)
+    # loss = (mse_loss(output_PM, gt_PM))
     loss.backward()
     optimizer.step()
     iters += 1
@@ -121,11 +128,17 @@ for epoch_num in range(start_epoch, opt.num_epochs):
   inp = inp_PM[0][0].detach().cpu().numpy()
   filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_inputPM.csv")
   pd.DataFrame(inp).to_csv(filename,header=False,index=False)
+  inp = ori_inp[0].detach().cpu().numpy()
+  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_orig_inputPM.csv")
+  pd.DataFrame(inp).to_csv(filename,header=False,index=False)
   out = output_PM[0][0].detach().cpu().numpy()
   filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
   pd.DataFrame(out).to_csv(filename,header=False,index=False)
   gt = gt_PM[0][0].detach().cpu().numpy()
   filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_gtPM.csv")
+  pd.DataFrame(gt).to_csv(filename,header=False,index=False)
+  gt = ori_gt[0].detach().cpu().numpy()
+  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_ori_gtPM.csv")
   pd.DataFrame(gt).to_csv(filename,header=False,index=False)
 
   # Log the results

@@ -31,7 +31,24 @@ def dataset_loader(data_dir):
       for f in files:
             inp = pd.read_csv(f,header=None)
             gt_data.append(inp)
-      return train_data, gt_data
+      #Read the mask
+      directory=data_dir+str("/mask")
+      os.chdir(directory)
+      files = [i for i in glob.glob('*.{}'.format(extension))]
+      files = sorted(files)
+      mask_data = []
+      for f in files:
+            inp = pd.read_csv(f,header=None)
+            mask_data.append(inp)
+      return train_data, gt_data, mask_data
 
-def normalize(data):
-    return data/255.
+def normalizeData(data):
+      norm = torch.zeros(np.shape(data))
+      for bs in range(len(data)):
+            temp = data[bs]
+            norm_temp = temp - torch.min(temp)
+            norm_temp = norm_temp/torch.max(norm_temp)
+            norm[bs] = norm_temp
+      # norm = torch.FloatTensor(np.array(norm))
+      return norm
+    
