@@ -10,7 +10,7 @@ import os
 import cv2
 import pandas as pd
 from matplotlib.pyplot import imread
-from models import art_rem1
+from models import art_rem,art_rem1
 from torch.utils.data import DataLoader
 from datas import dataset_loader
 import torch.optim as optim
@@ -69,7 +69,7 @@ if os.path.exists(checkpoints_dir) is not True:
 
 # Load the model
 input_channel=1
-model = art_rem1(input_channel).cuda()
+model = art_rem(input_channel).cuda()
 # model = nn.DataParallel(model) # For using multiple GPUs
 
 # Define the optimizer

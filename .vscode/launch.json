@@ -21,7 +21,7 @@
             "program": "/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/train.py",
             "args": [
                 "--batchSize","4",
-                "--lr","0.005",
+                "--lr","0.01",
                 "--decay_step","1000",
                 "--num_epochs","600",
                 // "--data_dir","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/data",
