@@ -54,7 +54,7 @@ train_set=[]
 for i in range(len(input_set)):
   train_set.append([input_set[i], groundTruth_set[i]])
 # train_set = torch.FloatTensor(train_set)
-trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
+trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=False, pin_memory=True)
 #Convert the panda dataframe to Torch tensor
 
 # Define the loss function

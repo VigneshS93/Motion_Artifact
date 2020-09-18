@@ -71,6 +71,6 @@ class art_rem1(torch.nn.Module):
         h = F.relu(self.mpool2(h, indices))
         h = F.relu(self.bnorm6(self.conv6(h)))
         h = F.relu(self.bnorm7(self.conv7(h)))
-        h = self.conv8(h)
+        h = F.relu(self.bnorm8(self.conv8(h)))
         
         return h

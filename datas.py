@@ -17,6 +17,7 @@ def dataset_loader(data_dir):
       directory=data_dir+str("/input")
       os.chdir(directory)
       files = [i for i in glob.glob('*.{}'.format(extension))]
+      files = sorted(files)
       train_data = []
       for f in files:
             inp = pd.read_csv(f,header=None)
@@ -25,6 +26,7 @@ def dataset_loader(data_dir):
       directory=data_dir+str("/groundTruth")
       os.chdir(directory)
       files = [i for i in glob.glob('*.{}'.format(extension))]
+      files = sorted(files)
       gt_data = []
       for f in files:
             inp = pd.read_csv(f,header=None)
