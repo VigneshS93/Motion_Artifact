@@ -27,13 +27,13 @@ from datas import normalizeData
 
 #Pass the arguments
 parser = argparse.ArgumentParser(description="art_rem")
-parser.add_argument("--batchSize", type=int, default=8, help="Training batch size")
-parser.add_argument("--num_epochs", type=int, default=200, help="Number of training epochs")
-parser.add_argument("--decay_step", type=int, default=500, help="The step at which the learning rate should drop")
+parser.add_argument("--batchSize", type=int, default=4, help="Training batch size")
+parser.add_argument("--num_epochs", type=int, default=600, help="Number of training epochs")
+parser.add_argument("--decay_step", type=int, default=1000, help="The step at which the learning rate should drop")
 parser.add_argument("--lr_decay", type=float, default=0.5, help='Rate at which the learning rate should drop')
 parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rate")
-parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
-parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
+parser.add_argument("--data_dir", type=str, default="/home/atipa/Project/motionArtifact/motionArtRed/dataset/OE_masked_1/OE_masked", help='path of data')
+parser.add_argument("--log_dir", type=str, default="/home/atipa/Project/motionArtifact/motionArtRed/results/trial", help='path of log files')
 parser.add_argument("--write_freq", type=int, default=10, help="Step for saving Checkpoint")
 parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint to start from")
 
@@ -61,6 +61,10 @@ def squared_diff(mask, output, groundTruth):
   mask_sq_diff = torch.mul(mask,sq_diff)
   loss = torch.mean(mask_sq_diff)
   return loss
+
+def percept_loss(output,regularization):
+  reg_loss = regularization * (torch.sum(torch.abs(output[:, :, :, :-1] - output[:, :, :, 1:])) + torch.sum(torch.abs(output[:, :, :-1, :] - output[:, :, 1:, :])))
+  return reg_loss
 iters = -1
 
 #Define the log directory for checkpoints
@@ -94,7 +98,7 @@ log.write('Supervised learning for motion artifact reduction - Training\n')
 log.write_args(opt)
 lr_scheduler = lr_scd.StepLR(optimizer, step_size=opt.decay_step, gamma=opt.lr_decay)
 iters = max(iters,0)
-
+reg = 1e-7
 # Train the network on the training dataset
 for epoch_num in range(start_epoch, opt.num_epochs):
   trainData = iter(trainLoader)
@@ -109,8 +113,9 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
     mask_PM = torch.unsqueeze(mask_PM,1).cuda()
     output_PM = model(inp_PM)
+    # rg_loss = percept_loss(output_PM,reg)
     loss = squared_diff(mask_PM, output_PM, gt_PM)
-    # loss = (mse_loss(output_PM, gt_PM))
+    # loss = loss + rg_loss
     loss.backward()
     optimizer.step()
     iters += 1
