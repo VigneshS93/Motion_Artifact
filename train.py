@@ -10,9 +10,9 @@ import os
 import cv2
 import pandas as pd
 from matplotlib.pyplot import imread
-from models import art_rem,art_rem1
+from models import art_rem1
 from torch.utils.data import DataLoader
-from datas import dataset_loader
+from datas import dataset_loader, dataLoader_whul2p_unet_oam, dataLoader_uhul2p_unet_oam, dataLoader_whuhul2p_unet_oam
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scd 
 import sys
@@ -26,33 +26,47 @@ from datas import normalizeData
 
 
 #Pass the arguments
-parser = argparse.ArgumentParser(description="art_rem")
+parser = argparse.ArgumentParser(description="art_rem1")
 parser.add_argument("--batchSize", type=int, default=4, help="Training batch size")
 parser.add_argument("--num_epochs", type=int, default=600, help="Number of training epochs")
-parser.add_argument("--decay_step", type=int, default=1000, help="The step at which the learning rate should drop")
+parser.add_argument("--decay_step", type=int, default=100, help="The step at which the learning rate should drop")
 parser.add_argument("--lr_decay", type=float, default=0.5, help='Rate at which the learning rate should drop')
 parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rate")
-parser.add_argument("--data_dir", type=str, default="/home/atipa/Project/motionArtifact/motionArtRed/dataset/OE_masked_1/OE_masked", help='path of data')
-parser.add_argument("--log_dir", type=str, default="/home/atipa/Project/motionArtifact/motionArtRed/results/trial", help='path of log files')
-parser.add_argument("--write_freq", type=int, default=10, help="Step for saving Checkpoint")
+parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
+parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
+parser.add_argument("--write_freq", type=int, default=50, help="Step for saving Checkpoint")
 parser.add_argument("--checkpoint", type=str, default=None, help="Checkpoint to start from")
+parser.add_argument("--gpu_no", type=str, default="0", help="GPU number")
+parser.add_argument("--input_channel", type=int, default=2, help="Input channels")
+parser.add_argument("--start_id", type=int, default=1, help="Start data id")
+parser.add_argument("--end_id", type=int, default=40, help="End data id")
+parser.add_argument("--start_dev_id", type=int, default=0, help="Start data id for dev set")
+parser.add_argument("--end_dev_id", type=int, default=0, help="End data id for dev set")
+parser.add_argument("--num_of_ang", type=int, default=5, help="Number of angles that one object rotates for")
+parser.add_argument("--num_of_motion", type=int, default=5, help="Number of motions that one object moves")
 
 opt = parser.parse_args()
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_no
 
 
 # load the training data set
-input_set, groundTruth_set, mask = dataset_loader(opt.data_dir)
+# input_set, groundTruth_set, mask = dataset_loader(opt.data_dir)
+# input_set = torch.FloatTensor(np.array(input_set))
+# groundTruth_set = torch.FloatTensor(np.array(groundTruth_set))
+# mask = torch.FloatTensor(np.array(mask))
+# mask = mask/255
+# norm_input = normalizeData(input_set)
+# norm_gt = normalizeData(groundTruth_set)
+input_set, groundTruth_set, mask, filenames = dataLoader_whul2p_unet_oam(opt.data_dir, opt.start_id, opt.end_id, opt.num_of_ang, opt.num_of_motion)
 input_set = torch.FloatTensor(np.array(input_set))
 groundTruth_set = torch.FloatTensor(np.array(groundTruth_set))
 mask = torch.FloatTensor(np.array(mask))
-mask = mask/255
-norm_input = normalizeData(input_set)
-norm_gt = normalizeData(groundTruth_set)
 train_set=[]
 for i in range(len(input_set)):
-  train_set.append([input_set[i], norm_input[i], groundTruth_set[i], norm_gt[i], mask[i]])
-trainLoader = DataLoader(dataset=train_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
+  # train_set.append([input_set[i], norm_input[i], groundTruth_set[i], norm_gt[i], mask[i]])
+  train_set.append([input_set[i], groundTruth_set[i], mask[i], filenames[i]])
+num_workers = len(np.fromstring(opt.gpu_no, dtype=int, sep=','))
+trainLoader = DataLoader(dataset=train_set, num_workers=num_workers, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
 
 # Define the loss function
 mse_loss = nn.MSELoss(reduction='mean')
@@ -61,7 +75,11 @@ def squared_diff(mask, output, groundTruth):
   mask_sq_diff = torch.mul(mask,sq_diff)
   loss = torch.mean(mask_sq_diff)
   return loss
-
+def ab_diff(mask, output, groundTruth):
+  abs_diff = torch.abs(output - groundTruth)
+  mask_abs_diff = torch.mul(mask,abs_diff)
+  loss = torch.mean(mask_abs_diff)
+  return loss
 def percept_loss(output,regularization):
   reg_loss = regularization * (torch.sum(torch.abs(output[:, :, :, :-1] - output[:, :, :, 1:])) + torch.sum(torch.abs(output[:, :, :-1, :] - output[:, :, 1:, :])))
   return reg_loss
@@ -77,9 +95,8 @@ if os.path.exists(checkpoints_dir) is not True:
   os.mkdir(checkpoints_dir)
 
 # Load the model
-input_channel=1
-model = art_rem1(input_channel).cuda()
-# model = nn.DataParallel(model) # For using multiple GPUs
+model = art_rem1(opt.input_channel).cuda()
+model = nn.DataParallel(model) # For using multiple GPUs
 
 # Define the optimizer
 optimizer = optim.Adam(model.parameters(), lr=opt.lr)
@@ -105,16 +122,17 @@ for epoch_num in range(start_epoch, opt.num_epochs):
   ave_loss = 0
   count = 0
   for data in iter(trainLoader):
+    optimizer.zero_grad()
     if lr_scheduler is not None:
       lr_scheduler.step(iters)
-    optimizer.zero_grad()
-    ori_inp, inp_PM, ori_gt, gt_PM, mask_PM = next(trainData)
-    inp_PM = torch.unsqueeze(inp_PM,1).cuda()
+    
+    inp_PM, gt_PM, mask_PM, filename_PM = next(trainData)
+    # inp_PM = torch.unsqueeze(inp_PM,1).cuda()
+    inp_PM = inp_PM.cuda()
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
     mask_PM = torch.unsqueeze(mask_PM,1).cuda()
     output_PM = model(inp_PM)
-    # rg_loss = percept_loss(output_PM,reg)
-    loss = squared_diff(mask_PM, output_PM, gt_PM)
+    loss = ab_diff(mask_PM, output_PM, gt_PM)
     # loss = loss + rg_loss
     loss.backward()
     optimizer.step()
@@ -129,22 +147,10 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     fname = os.path.join(checkpoints_dir, 'checkpoint_{}'.format(epoch_num))
     checkpoint_util.save_checkpoint(filename=fname, model_3d=model, optimizer=optimizer, iters=iters, epoch=epoch_num)
 
-  # Write CSV files
-  inp = inp_PM[0][0].detach().cpu().numpy()
-  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_inputPM.csv")
-  pd.DataFrame(inp).to_csv(filename,header=False,index=False)
-  inp = ori_inp[0].detach().cpu().numpy()
-  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_orig_inputPM.csv")
-  pd.DataFrame(inp).to_csv(filename,header=False,index=False)
-  out = output_PM[0][0].detach().cpu().numpy()
-  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_outputPM.csv")
-  pd.DataFrame(out).to_csv(filename,header=False,index=False)
-  gt = gt_PM[0][0].detach().cpu().numpy()
-  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_gtPM.csv")
-  pd.DataFrame(gt).to_csv(filename,header=False,index=False)
-  gt = ori_gt[0].detach().cpu().numpy()
-  filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_ori_gtPM.csv")
-  pd.DataFrame(gt).to_csv(filename,header=False,index=False)
+    # Write CSV files
+    out = output_PM[0][0].detach().cpu().numpy()
+    filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_") + str(filename_PM[0]) + str("_outputPM.csv")
+    pd.DataFrame(out).to_csv(filename,header=False,index=False)
 
   # Log the results
   log.write('\nepoch no.: {0}, Average_train_loss:{1}'.format((epoch_num), ("%.8f" % ave_loss)))
