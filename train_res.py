@@ -139,6 +139,10 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     iters += 1
     ave_loss += loss
     count += 1
+    for ind in range(0,len(inp_PM)):
+        out = output_PM[ind][0].detach().cpu().numpy()
+        filename = opt.log_dir + str("/train_res/") + str(filename_PM[ind]) + str("_outputPM.csv")
+        pd.DataFrame(out).to_csv(filename,header=False,index=False)
   lr_scheduler.get_last_lr()
   ave_loss /= count
   for param_group in optimizer.param_groups:

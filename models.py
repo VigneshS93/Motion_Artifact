@@ -35,26 +35,26 @@ class art_rem1(torch.nn.Module):
         super(art_rem1, self).__init__()
         ks = 3
         pad = 1
-        out_ch_1 = 100
-        out_ch_2 = 150
-        out_ch_3 = 200
+        out_ch_1 = 50
+        out_ch_2 = 100
+        out_ch_3 = 150
         out_pm = 1
         self.conv1 = nn.Conv2d(inp_ch, out_ch_1, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm1 = nn.BatchNorm2d(out_ch_1)
+        # self.bnorm1 = nn.BatchNorm2d(out_ch_1)
         self.conv2 = nn.Conv2d(out_ch_1, out_ch_2, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm2 = nn.BatchNorm2d(out_ch_2)
+        # self.bnorm2 = nn.BatchNorm2d(out_ch_2)
         self.conv3 = nn.Conv2d(out_ch_2, out_ch_3, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm3 = nn.BatchNorm2d(out_ch_3)
+        # self.bnorm3 = nn.BatchNorm2d(out_ch_3)
         self.mpool1 = nn.MaxPool2d(2, stride=2,return_indices=True)
         self.conv4 = nn.Conv2d(out_ch_3, out_ch_3, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm4 = nn.BatchNorm2d(out_ch_3)
+        # self.bnorm4 = nn.BatchNorm2d(out_ch_3)
         self.conv5 = nn.Conv2d(out_ch_3, out_ch_3, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm5 = nn.BatchNorm2d(out_ch_3)
+        # self.bnorm5 = nn.BatchNorm2d(out_ch_3)
         self.mpool2 = nn.MaxUnpool2d(2, stride=2)
         self.conv6 = nn.Conv2d(out_ch_3, out_ch_2, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm6 = nn.BatchNorm2d(out_ch_2)
+        # self.bnorm6 = nn.BatchNorm2d(out_ch_2)
         self.conv7 = nn.Conv2d(out_ch_2, out_ch_1, kernel_size=ks, stride=1, padding=pad)
-        self.bnorm7 = nn.BatchNorm2d(out_ch_1)
+        # self.bnorm7 = nn.BatchNorm2d(out_ch_1)
         self.conv8 = nn.Conv2d(out_ch_1, out_pm, kernel_size=ks, stride=1, padding=pad)
         # self.bnorm8 = nn.BatchNorm2d(out_pm)
      

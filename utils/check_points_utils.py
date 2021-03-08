@@ -39,7 +39,7 @@ def load_checkpoint(filename, model_3d=None, optimizer=None, meta_data=None):
         iters = checkpoint.get('iter', 0.0)
         epoch = checkpoint['epoch']
         if model_3d is not None and checkpoint['model_state_3d'] is not None:
-            model_3d.load_state_dict(checkpoint['model_state_3d'])
+            model_3d.load_state_dict(checkpoint['model_state_3d'], strict=False)
         if optimizer is not None and checkpoint['optimizer_state'] is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state'])
 
