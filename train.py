@@ -12,7 +12,7 @@ import pandas as pd
 from matplotlib.pyplot import imread
 from models import art_rem1
 from torch.utils.data import DataLoader
-from datas import dataset_loader, dataLoader_whul2p_unet_oam, dataLoader_uhul2p_unet_oam, dataLoader_whuhul2p_unet_oam
+from datas import dataset_loader, dataLoader_whul2p_unet_oam, dataLoader_uhul2p_unet_oam, dataLoader_whuhul2p_unet_oam, dataLoader_uhwh2p_unet_oam
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scd 
 import sys
@@ -22,6 +22,7 @@ import utils.check_points_utils as checkpoint_util
 from torch.autograd import Variable
 from torchvision import transforms
 from datas import normalizeData
+from burstLoss import BurstLoss as BL 
 # from dataloader import load_data as data_loader
 
 
@@ -57,13 +58,12 @@ os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_no
 # mask = mask/255
 # norm_input = normalizeData(input_set)
 # norm_gt = normalizeData(groundTruth_set)
-input_set, groundTruth_set, mask, filenames = dataLoader_uhul2p_unet_oam(opt.data_dir, opt.start_id, opt.end_id, opt.num_of_ang, opt.num_of_motion)
+input_set, groundTruth_set, mask, filenames = dataLoader_uhwh2p_unet_oam(opt.data_dir, opt.start_id, opt.end_id, opt.num_of_ang, opt.num_of_motion)
 input_set = torch.FloatTensor(np.array(input_set))
 groundTruth_set = torch.FloatTensor(np.array(groundTruth_set))
 mask = torch.FloatTensor(np.array(mask))
 train_set=[]
 for i in range(len(input_set)):
-  # train_set.append([input_set[i], norm_input[i], groundTruth_set[i], norm_gt[i], mask[i]])
   train_set.append([input_set[i], groundTruth_set[i], mask[i], filenames[i]])
 num_workers = len(np.fromstring(opt.gpu_no, dtype=int, sep=','))
 trainLoader = DataLoader(dataset=train_set, num_workers=num_workers, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
@@ -80,9 +80,40 @@ def ab_diff(mask, output, groundTruth):
   mask_abs_diff = torch.mul(mask,abs_diff)
   loss = torch.mean(mask_abs_diff)
   return loss
-def percept_loss(output,regularization):
-  reg_loss = regularization * (torch.sum(torch.abs(output[:, :, :, :-1] - output[:, :, :, 1:])) + torch.sum(torch.abs(output[:, :, :-1, :] - output[:, :, 1:, :])))
-  return reg_loss
+def covariance(output, out_mean, groundTruth, gt_mean):
+  out = output - out_mean
+  gt = groundTruth - gt_mean
+  prod = torch.mul(out,gt)
+  prod_sum = torch.sum(prod)
+  covar = prod_sum/(((output.shape[2])*(output.shape[3]))-1)
+  return covar 
+
+def ssim_ind(output, groundTruth):
+  k1 = 0.01
+  k2 = 0.03
+  out_mean = torch.mean(output)
+  gt_mean = torch.mean(groundTruth)
+  out_var = torch.var(output)
+  gt_var = torch.var(groundTruth)
+  covar_var = covariance(output, out_mean, groundTruth, gt_mean)
+  c1 = (k1*255)*(k1*255)
+  c2 = (k2*255)*(k2*255)
+  num = ((2*out_mean*gt_mean)+c1)*((2*covar_var)+c2)
+  den = ((out_mean*out_mean)+(gt_mean*gt_mean)+c1)*((out_var*out_var)+(gt_var*gt_var)+c2)
+  ssim = num/den 
+  return ssim
+def ssim_loss(mask,output,groundTruth):
+  out = torch.mul(output, mask)
+  gt = torch.mul(groundTruth,mask)
+  ssim = ssim_ind(out,gt)
+  loss = 1 - ssim
+  return loss
+criterion = BL()
+def burst_loss(mask, output, groundTruth):
+  out = torch.mul(output,mask)
+  gt = torch.mul(groundTruth,mask)
+  loss = criterion(out,gt)
+  return loss
 iters = -1
 
 #Define the log directory for checkpoints
@@ -132,8 +163,8 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
     mask_PM = torch.unsqueeze(mask_PM,1).cuda()
     output_PM = model(inp_PM)
-    loss = ab_diff(mask_PM, output_PM, gt_PM)
-    # loss = loss + rg_loss
+    # loss = ab_diff(mask_PM, output_PM, gt_PM)
+    loss = burst_loss(mask_PM, output_PM, gt_PM)
     loss.backward()
     optimizer.step()
     iters += 1
@@ -152,10 +183,6 @@ for epoch_num in range(start_epoch, opt.num_epochs):
     filename = opt.log_dir + str("/epoch_") + str(epoch_num) + str("_") + str(filename_PM[0]) + str("_outputPM.csv")
     pd.DataFrame(out).to_csv(filename,header=False,index=False)
   
-  for ind in range(0,len(inp_PM)):
-    out = output_PM[ind][0].detach().cpu().numpy()
-    filename = opt.log_dir + str("/train_res/") + str(filename_PM[ind]) + str("_outputPM.csv")
-    pd.DataFrame(out).to_csv(filename,header=False,index=False)
   # Log the results
   log.write('\nepoch no.: {0}, Average_train_loss:{1}'.format((epoch_num), ("%.8f" % ave_loss)))
   

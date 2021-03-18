@@ -27,7 +27,7 @@
                 "--data_dir","/home/atipa/Project/motionFtp/motion_data_011021_oam",
                 "--log_dir","/home/atipa/Project/motionFtp/results/trial",
                 "--start_id","1",
-                "--end_id","3",
+                "--end_id","1",
                 "--gpu_no","0,1,2"
             ]
 
@@ -74,36 +74,34 @@
         {
             "type": "python",
             "request": "launch",
-            "name": "test_sim",
+            "name": "valid_sim",
             "console": "integratedTerminal",
             "program": "/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/test_sim.py",
             "args": [
-                "--batchSize","2",
-                // "--decay_step","10000",
-                // "--num_epochs","701",
+                "--batchSize","1",
                 "--start_id","41",
                 "--end_id","46",
                 "--gpu_no","0",
                 "--data_dir","/home/atipa/Project/motionFtp/motion_data_011021_oam",
-                "--log_dir","/home/atipa/Project/motionFtp/results/exp50/valid_res",
-                "--checkpoint","/home/atipa/Project/motionFtp/results/exp50/checkpoints/checkpoint_699" 
+                "--log_dir","/home/atipa/Project/motionFtp/results/exp53/valid_res",
+                "--checkpoint","/home/atipa/Project/motionFtp/results/exp53/checkpoints/checkpoint_699" 
             ]
-
         },
         {
             "type": "python",
             "request": "launch",
             "name": "test",
             "console": "integratedTerminal",
-            "program": "/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/test.py",
+            "program": "/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/test_sim.py",
             "args": [
-                "--batchSize","4",
-                "--data_dir","/home/atipa/Project/motionArtifact/motionArtRed/dataset/OE_paperData",
-                "--log_dir","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/results/trial",
-                "--checkpoint","/home/atipa/Project/motionArtifact/motionArtRed/Motion_Artifact/results/trial/checkpoints/checkpoint_7"
-                
+                "--batchSize","1",
+                "--start_id","85",
+                "--end_id","85",
+                "--gpu_no","0",
+                "--data_dir","/home/atipa/Project/motionFtp/motion_data_real/hippo_motion_2",
+                "--log_dir","/home/atipa/Project/motionFtp/results/exp53/test_res/hippo_motion_2",
+                "--checkpoint","/home/atipa/Project/motionFtp/results/exp53/checkpoints/checkpoint_699" 
             ]
-
         }
     ]
 }

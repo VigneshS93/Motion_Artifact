@@ -12,7 +12,7 @@ import pandas as pd
 from matplotlib.pyplot import imread
 from models import art_rem1
 from torch.utils.data import DataLoader
-from datas import dataset_loader, dataLoader_whul2p_unet_oam, dataLoader_uhul2p_unet_oam, dataLoader_whuhul2p_unet_oam, dataLoader_uhul2p_unet_oam_real
+from datas import dataset_loader, dataLoader_whul2p_unet_oam, dataLoader_uhul2p_unet_oam, dataLoader_whuhul2p_unet_oam, dataLoader_uhwhul2p_unet_oam_real, dataLoader_uhwh2p_unet_oam, dataLoader_uhwh2p_unet_oam_real
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scd 
 import sys
@@ -20,14 +20,12 @@ sys.path.append("..")
 from utils.logutils import LogUtils
 import utils.check_points_utils as checkpoint_util
 from cannyEdge import CannyFilter
-
+from burstLoss import BurstLoss as BL 
 #Pass the arguments
 parser = argparse.ArgumentParser(description="art_rem1")
 parser.add_argument("--batchSize", type=int, default=4, help="Training batch size")
 parser.add_argument("--num_epochs", type=int, default=600, help="Number of training epochs")
 parser.add_argument("--decay_step", type=int, default=100, help="The step at which the learning rate should drop")
-# parser.add_argument("--lr_decay", type=float, default=0.5, help='Rate at which the learning rate should drop')
-# parser.add_argument("--lr", type=float, default=0.01, help="Initial learning rate")
 parser.add_argument("--data_dir", type=str, default=" ", help='path of data')
 parser.add_argument("--log_dir", type=str, default=" ", help='path of log files')
 parser.add_argument("--write_freq", type=int, default=50, help="Step for saving Checkpoint")
@@ -44,7 +42,7 @@ opt = parser.parse_args()
 os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_no
 
 # load the testing data set
-input_set, groundTruth_set, mask, filenames = dataLoader_uhul2p_unet_oam(opt.data_dir, opt.start_id, opt.end_id, opt.num_of_ang, opt.num_of_motion)
+input_set, groundTruth_set, mask, filenames = dataLoader_uhwh2p_unet_oam(opt.data_dir, opt.start_id, opt.end_id, opt.num_of_ang, opt.num_of_motion)
 input_set = torch.FloatTensor(np.array(input_set, dtype=np.float32))
 groundTruth_set = torch.FloatTensor(np.array(groundTruth_set, dtype=np.float32))
 mask = torch.FloatTensor(np.array(mask))
@@ -55,31 +53,24 @@ for i in range(len(input_set)):
 testLoader = DataLoader(dataset=test_set, num_workers=0, batch_size=opt.batchSize, shuffle=True, pin_memory=True)
 
 # Define the loss function
-# mse_loss = nn.MSELoss(reduction='mean')
-# canny_edge = CannyFilter().cuda()
+
 def squared_diff(mask, output, groundTruth):
   sq_diff = torch.square(output - groundTruth)
   mask_sq_diff = torch.mul(mask, sq_diff)
   loss = torch.mean(mask_sq_diff)
   return loss
-# def edgeLoss(mask, output_edge, groundTruth):
-#   # output_edge = canny_edge(output, opt.low_th, opt.high_th)
-#   gt_edge = canny_edge(groundTruth, opt.low_th, opt.high_th)
-#   diff = torch.abs(output_edge - gt_edge)
-#   mask_diff = torch.mul(mask, diff)
-#   loss = mask_diff.float().mean()
-#   return loss
+
 def mean_abs_loss(mask, output, groundTruth):
   diff = torch.abs(output - groundTruth)
   mask_diff = torch.mul(mask, diff)
   loss = torch.mean(mask_diff)
   return loss
-# def mse_edge_loss(mask, output, out_edge, groundTruth, co_eff):
-#   # mse_loss = squared_diff(mask, output, groundTruth)
-#   mae_loss = mean_abs_loss(mask, output, groundTruth)
-#   edge_loss = edgeLoss(mask, out_edge, groundTruth)
-#   loss = co_eff*mae_loss + (1-co_eff)*edge_loss
-#   return loss, edge_loss
+criterion = BL()
+def burst_loss(mask, output, groundTruth):
+  out = torch.mul(output,mask)
+  gt = torch.mul(groundTruth,mask)
+  loss = criterion(out,gt)
+  return loss
 
 
 #Define the log directory for checkpoints
@@ -92,8 +83,7 @@ if os.path.exists(checkpoints_dir) is not True:
   os.mkdir(checkpoints_dir)
 
 # Load the model
-input_channel=2
-model = art_rem1(input_channel).cuda()
+model = art_rem1(opt.input_channel).cuda()
 # model = nn.DataParallel(model) # For using multiple GPUs
 
 #Load status from checkpoint 
@@ -118,7 +108,7 @@ for data in iter(testLoader):
     gt_PM = torch.unsqueeze(gt_PM,1).cuda()
     mask_PM = torch.unsqueeze(mask_PM,1).cuda()
     output_PM = model(inp_PM)
-    loss= mean_abs_loss(mask_PM, output_PM, gt_PM, )
+    loss = burst_loss(mask_PM, output_PM, gt_PM)
     ave_loss += loss.item()
 
     for ind in range(0,len(inp_PM)):

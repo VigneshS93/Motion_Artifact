@@ -366,56 +366,7 @@ def dataLoader_uhul2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion):
       for i in range(start, end + 1):
         if i in [8,  10,  13, 44]: # bird, donkey, simpson, penguin having unwrapping error
             continue
-        for j in range(1, num_of_ang + 1):
-        #     if i == 1 and j in [2, 4]:
-        #         continue
-        #     if i == 2 and j in [2, 3, 5]:
-        #         continue
-        #     if i == 3 and j in [4]:
-        #         continue
-        #     if i == 7 and j in [5]:
-        #         continue
-        #     if i == 9 and j in [5]:
-        #         continue
-        #     if i == 11 and j in [2, 5]:
-        #         continue
-        #     if i == 12 and j in [2,3,4,5]:
-        #         continue
-        #     if i == 14 and j in [2, 3, 5]:
-        #         continue
-        #     if i == 15 and j in [4, 5]:
-        #         continue
-        #     if i == 16 and j in [5]:
-        #         continue
-        #     if i == 20 and j in [2]:
-        #         continue
-        #     if i == 9 and j in [5]:
-        #         continue
-        #     if i == 21 and j in [5]:
-        #         continue
-        #     if i == 22 and j in [5]:
-        #         continue
-        #     if i == 23 and j in [4, 5]:
-        #         continue
-        #     if i == 24 and j in [2,4,5]:
-        #         continue
-        #     if i == 29 and j in [4, 5]:
-        #         continue
-        #     if i == 31 and j in [4, 5]:
-        #         continue
-        #     if i == 36 and j in [2, 3]:
-        #         continue
-        #     if i == 37 and j in [4, 5]:
-        #         continue
-        #     if i == 38 and j in [1,4]:
-        #         continue
-        #     if i == 40 and j in [4, 5]:
-        #         continue
-        #     if i == 42 and j in [4, 5]:
-        #         continue
-        #     if i == 43 and j in [5]:
-        #         continue
-             
+        for j in range(1, num_of_ang + 1):       
             for k in range(1, num_of_motion + 1):
               # Read input: uph + upl
               uph = np.genfromtxt(directory_wph + "/input_uph_{}_{}_{}.csv".format(i, j, k), delimiter=',')
@@ -440,7 +391,101 @@ def dataLoader_uhul2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion):
               filename.append("{}_{}_{}".format(i, j, k))
 
       return train_data, gt_data, mask_data, filename
+# data loader for the unwrapped high phase and wrapped high phase to absolute phase, uses the index of object, angle, and motion (oam)
+def dataLoader_uhwh2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion):
+      # h_or_l : should either be 'h' or 'l'
+      # Input data folder
+      # wrapped high-frequency phase map
+      directory_uph = data_dir + str("/input_uph")
+      # wrapped low-frequency phase map
+      directory_wph = data_dir + str("/input_wph")
+      
+      # Label data folder
+      directory_label = data_dir + str("/label_uph")
 
+      # Mask data folder
+      directory_mask = data_dir + str("/mask")
+
+      train_data = []
+      gt_data = []
+      mask_data = []
+      filename = []
+
+      for i in range(start, end + 1):
+        if i in [8,  10,  13, 44]: # bird, donkey, simpson, penguin having unwrapping error
+            continue
+        for j in range(1, num_of_ang + 1):       
+            for k in range(1, num_of_motion + 1):
+              # Read input: uph + upl
+              uph = np.genfromtxt(directory_uph + "/input_uph_{}_{}_{}.csv".format(i, j, k), delimiter=',')
+              wph = np.genfromtxt(directory_wph + "/input_wph_{}_{}_{}.csv".format(i, j, k), delimiter=',') 
+              temp = np.zeros((2, uph.shape[0], wph.shape[1]), 'float')
+              temp[1, ...] = wph
+              temp[0, ...] = uph
+              # temp = temp[:, 1:512, 16:527]
+              train_data.append(temp) 
+
+              # Read ground truth: absolute phase
+              temp = pd.read_csv(directory_label + "/label_uph_{}_{}_{}.csv".format(i, j, k), header=None)
+              # temp = temp[1:512, 16:527]
+              gt_data.append(temp)
+
+              # Read mask
+              temp = pd.read_csv(directory_mask + "/mask_{}_{}_{}.csv".format(i, j, k), header=None)
+              # temp = temp[1:512, 16:527]
+              mask_data.append(temp)
+              
+              # Save filenames
+              filename.append("{}_{}_{}".format(i, j, k))
+
+      return train_data, gt_data, mask_data, filename
+def dataLoader_whk2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion):
+      # h_or_l : should either be 'h' or 'l'
+      # Input data folder
+      # wrapped high-frequency phase map
+      directory_wph = data_dir + str("/input_wph")
+      # wrapped low-frequency phase map
+      directory_k = data_dir + str("/input_k")
+      
+      # Label data folder
+      directory_label = data_dir + str("/label_uph")
+
+      # Mask data folder
+      directory_mask = data_dir + str("/mask")
+
+      train_data = []
+      gt_data = []
+      mask_data = []
+      filename = []
+
+      for i in range(start, end + 1):
+        if i in [8,  10,  13, 44]: # bird, donkey, simpson, penguin having unwrapping error
+            continue
+        for j in range(1, num_of_ang + 1):       
+            for k in range(1, num_of_motion + 1):
+              # Read input: uph + upl
+              inp_k = np.genfromtxt(directory_k + "/input_k_{}_{}_{}.csv".format(i, j, k), delimiter=',')
+              wph = np.genfromtxt(directory_wph + "/input_wph_{}_{}_{}.csv".format(i, j, k), delimiter=',') 
+              temp = np.zeros((2, wph.shape[0], wph.shape[1]), 'float')
+              temp[1, ...] = inp_k
+              temp[0, ...] = wph
+              # temp = temp[:, 1:512, 16:527]
+              train_data.append(temp) 
+
+              # Read ground truth: absolute phase
+              temp = pd.read_csv(directory_label + "/label_uph_{}_{}_{}.csv".format(i, j, k), header=None)
+              # temp = temp[1:512, 16:527]
+              gt_data.append(temp)
+
+              # Read mask
+              temp = pd.read_csv(directory_mask + "/mask_{}_{}_{}.csv".format(i, j, k), header=None)
+              # temp = temp[1:512, 16:527]
+              mask_data.append(temp)
+              
+              # Save filenames
+              filename.append("{}_{}_{}".format(i, j, k))
+
+      return train_data, gt_data, mask_data, filename
 def dataLoader_whuhul2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion):
       # h_or_l : should either be 'h' or 'l'
       # Input data folder
@@ -466,64 +511,15 @@ def dataLoader_whuhul2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion
         if i in [8,  10,  13, 44]: # bird, donkey, simpson, penguin having unwrapping error
             continue
         for j in range(1, num_of_ang + 1):
-            if i == 1 and j in [2, 4]:
-                continue
-            if i == 2 and j in [2, 3, 5]:
-                continue
-            if i == 3 and j in [4]:
-                continue
-            if i == 7 and j in [5]:
-                continue
-            if i == 9 and j in [5]:
-                continue
-            if i == 11 and j in [2, 5]:
-                continue
-            if i == 12 and j in [2,3,4,5]:
-                continue
-            if i == 14 and j in [2, 3, 5]:
-                continue
-            if i == 15 and j in [4, 5]:
-                continue
-            if i == 16 and j in [5]:
-                continue
-            if i == 20 and j in [2]:
-                continue
-            if i == 9 and j in [5]:
-                continue
-            if i == 21 and j in [5]:
-                continue
-            if i == 22 and j in [5]:
-                continue
-            if i == 23 and j in [4, 5]:
-                continue
-            if i == 24 and j in [2,4,5]:
-                continue
-            if i == 29 and j in [4, 5]:
-                continue
-            if i == 31 and j in [4, 5]:
-                continue
-            if i == 36 and j in [2, 3]:
-                continue
-            if i == 37 and j in [4, 5]:
-                continue
-            if i == 38 and j in [1,4]:
-                continue
-            if i == 40 and j in [4, 5]:
-                continue
-            if i == 42 and j in [4, 5]:
-                continue
-            if i == 43 and j in [5]:
-                continue
-             
             for k in range(1, num_of_motion + 1):
               # Read input: wph + wpl
               wph = np.genfromtxt(directory_wph + "/input_wph_{}_{}_{}.csv".format(i, j, k), delimiter=',')
               uph = np.genfromtxt(directory_uph + "/input_uph_{}_{}_{}.csv".format(i, j, k), delimiter=',')
               wpl = np.genfromtxt(directory_wpl + "/input_upl_{}_{}_{}.csv".format(i, j, k), delimiter=',') # did not name the variable properly
               temp = np.zeros((3, wph.shape[0], wpl.shape[1]), 'float')
-              temp[2, ...] = uph
-              temp[1, ...] = wpl
-              temp[0, ...] = wph
+              temp[2, ...] = wpl
+              temp[1, ...] = wph
+              temp[0, ...] = uph
               # temp = temp[:, 1:512, 16:527]
               train_data.append(temp) 
 
@@ -542,7 +538,7 @@ def dataLoader_whuhul2p_unet_oam(data_dir, start, end, num_of_ang, num_of_motion
 
       return train_data, gt_data, mask_data, filename
 
-def dataLoader_uhul2p_unet_oam_real(data_dir, start, end):
+def dataLoader_uhwhul2p_unet_oam_real(data_dir, start, end):
       # h_or_l : should either be 'h' or 'l'
 
       train_data = []
@@ -553,8 +549,39 @@ def dataLoader_uhul2p_unet_oam_real(data_dir, start, end):
         # Read input: wph + wpl
         uph = np.genfromtxt(data_dir + "/input_uph_{}.csv".format(i), delimiter=',')
         upl = np.genfromtxt(data_dir + "/input_upl_{}.csv".format(i), delimiter=',')
-        temp = np.zeros((2, uph.shape[0], upl.shape[1]), 'float')
-        temp[1, ...] = upl
+        wph = np.genfromtxt(data_dir + "/input_wph_{}.csv".format(i), delimiter=',')
+        temp = np.zeros((3, uph.shape[0], upl.shape[1]), 'float')
+        temp[2, ...] = upl
+        temp[1, ...] = wph
+        temp[0, ...] = uph
+        # temp = temp[:, 1:512, 16:527]
+        train_data.append(temp) 
+
+        # Read mask
+        temp = pd.read_csv(data_dir + "/mask_{}.csv".format(i), header=None)
+        # temp = temp[1:512, 16:527]
+        mask_data.append(temp)
+              
+        # Save filenames
+        filename.append("{}".format(i))
+
+      return train_data, mask_data, filename
+
+def dataLoader_uhwh2p_unet_oam_real(data_dir, start, end):
+      # h_or_l : should either be 'h' or 'l'
+
+      train_data = []
+      mask_data = []
+      filename = []
+      
+      for i in range(start, end + 1):
+        # Read input: wph + wpl
+        uph = np.genfromtxt(data_dir + "/input_uph_{}.csv".format(i), delimiter=',')
+        # upl = np.genfromtxt(data_dir + "/input_upl_{}.csv".format(i), delimiter=',')
+        wph = np.genfromtxt(data_dir + "/input_wph_{}.csv".format(i), delimiter=',')
+        temp = np.zeros((2, uph.shape[0], wph.shape[1]), 'float')
+        # temp[2, ...] = upl
+        temp[1, ...] = wph
         temp[0, ...] = uph
         # temp = temp[:, 1:512, 16:527]
         train_data.append(temp) 
